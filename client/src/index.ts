@@ -1,12 +1,11 @@
 import { trackKeyboard, mainLoop, keyIsDown } from './engine'
 
 const canvas = (document.getElementById('frame') as HTMLCanvasElement).getContext('2d') as CanvasRenderingContext2D
+canvas.fillStyle = 'red'
 
 const player = { x: 0, y: 0, direction: { x: 0, y: 0 } }
 
 const speed = 0.01
-
-canvas.fillStyle = 'red'
 
 const webSocket = new WebSocket('ws://localhost:8080')
 

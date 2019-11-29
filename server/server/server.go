@@ -15,32 +15,43 @@ func mainLoop(newClients <-chan *client) {
 	engine := engine.NewEngine(1, 0.1)
 	lastUpdate := time.Now()
 	ticks := time.Tick(500 * time.Millisecond)
-	for {
-		select {
-		case newClient := <-newClients:
-			engine.AddPlayer(newClient.ID, newClient.Player)
-			clients = append(clients, newClient)
-		case <-ticks:
-			for _, client := range clients {
-				state, err := engine.StateJSON()
-				if err != nil {
-					log.Printf("Error while encoding engine state JSON %v", err)
-				}
-				err = client.Conn.WriteMessage(websocket.TextMessage, state)
-				if err != nil {
-					log.Printf("Error while sending JSON state message %v", err)
-				}
-			}
-		default:
-		}
 
+	updateEngine := func() {
 		now := time.Now()
 		dt += float64(now.Sub(lastUpdate).Nanoseconds()) / 1e6
 		dt = engine.Update(dt)
 		lastUpdate = now
+	}
+
+	sendMessages := func() {
+		for _, client := range clients {
+			if client.conn == nil {
+				continue // XXX Perhaps this client should get removed
+			}
+			state, err := engine.StateJSON()
+			if err != nil {
+				log.Printf("Error while encoding engine state JSON %v", err)
+			}
+			client.sendStateMessage(state)
+		}
+	}
+
+	for {
+		select {
+		case newClient := <-newClients:
+			// Right when a player connects, they are notified of their ID.
+			newClient.sendIDMessage()
+			engine.AddPlayer(newClient.id, newClient.player)
+			clients = append(clients, newClient)
+		case <-ticks:
+			sendMessages()
+		default:
+		}
+
+		updateEngine()
 
 		for _, client := range clients {
-			client.updatePlayerDirection()
+			client.handleMessages()
 		}
 	}
 }
@@ -51,7 +62,7 @@ func mainLoop(newClients <-chan *client) {
 // index.html from the staticFilesRoot folder.
 func Start(staticFilesRoot string) {
 	var upgrader websocket.Upgrader
-	newClients := make(chan *client, 10) // Is there a more meaningful value for the buffer size?
+	newClients := make(chan *client, 10) // XXX A more meaningful value for the buffer size?
 	go mainLoop(newClients)
 
 	mux := http.NewServeMux()
