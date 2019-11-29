@@ -6,5 +6,11 @@
 		{
 			"path": "server"
 		}
-	]
+	],
+	"settings": {
+		"cSpell.words": [
+			"UUID",
+			"uuid"
+		]
+	}
 }

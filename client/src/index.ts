@@ -1,4 +1,4 @@
-import { trackKeyboard, mainLoop } from './engine'
+import { trackKeyboard, mainLoop, keyIsDown } from './engine'
 
 const canvas = (document.getElementById('frame') as HTMLCanvasElement).getContext('2d') as CanvasRenderingContext2D
 
@@ -10,24 +10,31 @@ canvas.fillStyle = 'red'
 
 const webSocket = new WebSocket('ws://localhost:8080')
 
+function updatePlayerDirection() {
+    if (keyIsDown('arrowLeft'))
+        player.direction = { x: -1, y: 0 }
+    if (keyIsDown('arrowRight'))
+        player.direction = { x: 1, y: 0 }
+    if (keyIsDown('arrowUp'))
+        player.direction = { x: 0, y: -1 }
+    if (keyIsDown('arrowDown'))
+        player.direction = { x: 0, y: 1 }
+}
+
 webSocket.onmessage = event => {
-    const position = JSON.parse(event.data)
-    console.log(position)
-    player.x = position['X']
-    player.y = position['Y']
+    console.log(event)
+    const message = JSON.parse(event.data)
+    console.log(message)
 }
 
 webSocket.onopen = () => {
-    setInterval(() => {
-        webSocket.send(JSON.stringify(player))
-    }, 50)
-
     trackKeyboard()
+    setInterval(() => {
+        webSocket.send(JSON.stringify(player.direction))
+    }, 500)
+    mainLoop(dt => {
+        updatePlayerDirection()
+        canvas.clearRect(0, 0, 500, 500)
+        canvas.fillRect(player.x, player.y, 20, 20)
+    })
 }
-
-mainLoop(dt => {
-    player.x += player.direction.x * speed * dt
-    player.y += player.direction.y * speed * dt
-    canvas.clearRect(0, 0, 500, 500)
-    canvas.fillRect(player.x, player.y, 20, 20)
-})
