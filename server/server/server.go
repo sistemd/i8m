@@ -28,7 +28,8 @@ func mainLoop(newClients <-chan *client) {
 	sendMessages := func() {
 		for _, client := range clients {
 			if client.conn == nil {
-				continue // XXX Perhaps this client should get removed
+				engine.RemovePlayer(client.id)
+				continue
 			}
 			client.sendStateMessage(engine)
 		}

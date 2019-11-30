@@ -5,7 +5,14 @@ let direction = { x:0, y:0 }
 
 const speed = 0.01
 
-const webSocket = new WebSocket('ws://localhost:8080')
+function connectionURL() {
+    if (document.URL.indexOf('http') != -1)
+        return document.URL.replace('http', 'ws')
+    else
+        return 'ws://' + document.URL
+}
+
+const webSocket = new WebSocket(connectionURL())
 
 let gameState: GameState|undefined
 

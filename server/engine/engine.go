@@ -1,10 +1,19 @@
 package engine
 
+import "math/rand"
+
 // Player represents a player in the game.
 type Player struct {
 	Position  Vector `json:"position"`
 	Direction Vector `json:"direction"`
+	Skin      string `json:"skin"`
 	firedRail int    // XXX Incomplete
+}
+
+// NewPlayer creates a new player with a random skin.
+func NewPlayer() *Player {
+	skins := [...]string{"red", "green", "blue", "yellow", "orange", "purple"}
+	return &Player{Skin: skins[rand.Int()%len(skins)]}
 }
 
 // move moves the player for distance d.

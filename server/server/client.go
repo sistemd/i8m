@@ -19,7 +19,7 @@ func newClient(conn *websocket.Conn) *client {
 	c := &client{
 		id:       uuid.New().String(),
 		messages: make(chan messageFromClient, 20),
-		player:   &engine.Player{},
+		player:   engine.NewPlayer(),
 		conn:     conn,
 	}
 	go c.listenForMessages()

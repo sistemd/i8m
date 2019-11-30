@@ -55,5 +55,6 @@ export interface GameState {
     [playerId: string]: {
         position: Vector,
         direction: Vector,
+        skin: string,
     }
 }
