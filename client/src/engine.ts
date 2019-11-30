@@ -1,23 +1,26 @@
-export type Key = 'arrowLeft'|'arrowRight'|'arrowUp'|'arrowDown'
+interface Keys {
+    ArrowLeft: boolean
+    ArrowRight: boolean
+    ArrowUp: boolean
+    ArrowDown: boolean
+}
 
-const keys: { [key: string]: boolean } = {}
+export type Key = keyof Keys
+
+const keys: Keys = {
+    ArrowLeft: false,
+    ArrowRight: false,
+    ArrowUp: false,
+    ArrowDown: false,
+}
 
 export function trackKeyboard() {
     function keyHandler(value: boolean) {
         return (event: KeyboardEvent) => {
-            switch (event.key) {
-                case 'arrowLeft':
-                    keys['arrowLeft'] = value
-                    break
-                case 'arrowRight':
-                    keys['arrowRight'] = value
-                    break
-                case 'arrowUp':
-                    keys['arrowUp'] = value
-                    break
-                case 'arrowDown':
-                    keys['arrowDown'] = value
-                    break
+            for (const key in keys) {
+                if (event.key === key) {
+                    keys[key as Key] = value
+                }
             }
         }
     }
@@ -41,4 +44,16 @@ export function mainLoop(cb: (dt: number) => void)  {
     }
 
     requestAnimationFrame(update)
+}
+
+export interface Vector {
+    x: number
+    y: number
+}
+
+export interface GameState {
+    [playerId: string]: {
+        position: Vector,
+        direction: Vector,
+    }
 }

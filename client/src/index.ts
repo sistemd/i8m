@@ -1,39 +1,43 @@
-import { trackKeyboard, mainLoop, keyIsDown } from './engine'
+import { trackKeyboard, mainLoop, keyIsDown, GameState } from './engine'
+import { drawGame } from './canvas'
 
-const canvas = (document.getElementById('frame') as HTMLCanvasElement).getContext('2d') as CanvasRenderingContext2D
-canvas.fillStyle = 'red'
-
-const player = { x: 0, y: 0, direction: { x: 0, y: 0 } }
+let direction = { x:0, y:0 }
 
 const speed = 0.01
 
 const webSocket = new WebSocket('ws://localhost:8080')
 
+let gameState: GameState|undefined
+
 function updatePlayerDirection() {
-    if (keyIsDown('arrowLeft'))
-        player.direction = { x: -1, y: 0 }
-    if (keyIsDown('arrowRight'))
-        player.direction = { x: 1, y: 0 }
-    if (keyIsDown('arrowUp'))
-        player.direction = { x: 0, y: -1 }
-    if (keyIsDown('arrowDown'))
-        player.direction = { x: 0, y: 1 }
+    if (keyIsDown('ArrowLeft'))
+        direction = { x: -1, y: 0 }
+    else if (keyIsDown('ArrowRight'))
+        direction = { x: 1, y: 0 }
+    else if (keyIsDown('ArrowUp'))
+        direction = { x: 0, y: -1 }
+    else if (keyIsDown('ArrowDown'))
+        direction = { x: 0, y: 1 }
+    else
+        direction = { x: 0, y: 0 }
 }
 
 webSocket.onmessage = event => {
-    console.log(event)
     const message = JSON.parse(event.data)
-    console.log(message)
+    if (message.state)
+        gameState = message.state as GameState
 }
 
 webSocket.onopen = () => {
     trackKeyboard()
     setInterval(() => {
-        webSocket.send(JSON.stringify(player.direction))
-    }, 500)
+        webSocket.send(JSON.stringify({
+            direction,
+        }))
+    }, 5)
     mainLoop(dt => {
         updatePlayerDirection()
-        canvas.clearRect(0, 0, 500, 500)
-        canvas.fillRect(player.x, player.y, 20, 20)
+        if (gameState !== undefined)
+            drawGame(gameState)
     })
 }

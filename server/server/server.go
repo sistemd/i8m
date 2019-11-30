@@ -9,12 +9,14 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const serverMessagingTimeout = 10 * time.Millisecond
+
 func mainLoop(newClients <-chan *client) {
 	var dt float64
 	var clients []*client
 	engine := engine.NewEngine(1, 0.1)
 	lastUpdate := time.Now()
-	ticks := time.Tick(500 * time.Millisecond)
+	messageTimeout := time.Tick(serverMessagingTimeout)
 
 	updateEngine := func() {
 		now := time.Now()
@@ -39,7 +41,7 @@ func mainLoop(newClients <-chan *client) {
 			newClient.sendIDMessage()
 			engine.AddPlayer(newClient.id, newClient.player)
 			clients = append(clients, newClient)
-		case <-ticks:
+		case <-messageTimeout:
 			sendMessages()
 		default:
 		}

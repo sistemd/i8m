@@ -2,9 +2,9 @@ package engine
 
 // Player represents a player in the game.
 type Player struct {
-	Position  Vector
-	Direction Vector
-	firedRail int // XXX Incomplete
+	Position  Vector `json:"position"`
+	Direction Vector `json:"direction"`
+	firedRail int    // XXX Incomplete
 }
 
 // move moves the player for distance d.

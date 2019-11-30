@@ -81,5 +81,5 @@ type messageForClient struct {
 // messageFromClient is a message that gets sent from the client to the server.
 // This type will typically be decoded from JSON.
 type messageFromClient struct {
-	Direction *engine.Vector
+	Direction *engine.Vector `json:"direction"`
 }
