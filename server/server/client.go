@@ -63,8 +63,8 @@ func (c *client) sendMessage(msg *messageForClient) {
 	}
 }
 
-func (c *client) sendStateMessage(state []byte) {
-	c.sendMessage(&messageForClient{State: state})
+func (c *client) sendStateMessage(engine *engine.Engine) {
+	c.sendMessage(&messageForClient{State: engine.Players})
 }
 
 func (c *client) sendIDMessage() {
@@ -74,8 +74,8 @@ func (c *client) sendIDMessage() {
 // messageForClient is a message that gets sent from the server to the client.
 // This type is designed to be encoded into JSON.
 type messageForClient struct {
-	ID    string `json:"id,omitempty"`
-	State []byte `json:"state,omitempty"`
+	ID    string                    `json:"id,omitempty"`
+	State map[string]*engine.Player `json:"state,omitempty"`
 }
 
 // messageFromClient is a message that gets sent from the client to the server.

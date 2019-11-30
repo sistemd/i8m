@@ -28,11 +28,7 @@ func mainLoop(newClients <-chan *client) {
 			if client.conn == nil {
 				continue // XXX Perhaps this client should get removed
 			}
-			state, err := engine.StateJSON()
-			if err != nil {
-				log.Printf("Error while encoding engine state JSON %v", err)
-			}
-			client.sendStateMessage(state)
+			client.sendStateMessage(engine)
 		}
 	}
 

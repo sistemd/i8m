@@ -1,7 +1,5 @@
 package engine
 
-import "encoding/json"
-
 // Player represents a player in the game.
 type Player struct {
 	Position  Vector
@@ -26,7 +24,7 @@ func (p *Player) Die() {
 type Engine struct {
 	Timestep    float64 // Engine timestep in milliseconds.
 	PlayerSpeed float64 // Player speed in pixels per millisecond.
-	players     map[string]*Player
+	Players     map[string]*Player
 }
 
 // NewEngine creates a new engine.
@@ -34,7 +32,7 @@ func NewEngine(Timestep, PlayerSpeed float64) *Engine {
 	return &Engine{
 		Timestep:    Timestep,
 		PlayerSpeed: PlayerSpeed,
-		players:     make(map[string]*Player),
+		Players:     make(map[string]*Player),
 	}
 }
 
@@ -45,7 +43,7 @@ func NewEngine(Timestep, PlayerSpeed float64) *Engine {
 func (e *Engine) Update(deltaTime float64) (remainingTime float64) {
 	for deltaTime >= e.Timestep {
 		deltaTime -= e.Timestep
-		for _, player := range e.players {
+		for _, player := range e.Players {
 			player.move(e.PlayerSpeed * e.Timestep)
 		}
 	}
@@ -54,16 +52,10 @@ func (e *Engine) Update(deltaTime float64) (remainingTime float64) {
 
 // AddPlayer adds a new player to the simulation.
 func (e *Engine) AddPlayer(id string, p *Player) {
-	e.players[id] = p
+	e.Players[id] = p
 }
 
 // RemovePlayer removes a player from the simulation.
 func (e *Engine) RemovePlayer(id string) {
-	delete(e.players, id)
-}
-
-// StateJSON returns a JSON dump of engine state.
-func (e *Engine) StateJSON() (state []byte, err error) {
-	state, err = json.Marshal(e.players)
-	return
+	delete(e.Players, id)
 }
