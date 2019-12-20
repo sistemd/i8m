@@ -2,12 +2,59 @@ package engine
 
 import "math/rand"
 
+const maxRailLength = 50
+
+const playerBoundingRadius = 10
+
+// playerRespawnTimer is the respawn timer in milliseconds.
+const playerRespawnTimer = 3000
+
+const railTimer = 1000
+
 // Player represents a player in the game.
 type Player struct {
-	Position  Vector `json:"position"`
-	Direction Vector `json:"direction"`
-	Skin      string `json:"skin"`
-	firedRail int    // XXX Incomplete
+	Position    Vector  `json:"position"`
+	Direction   Vector  `json:"direction"`
+	Skin        string  `json:"skin"`
+	RespawnTime float64 `json:"respawnTime"`
+	RailTime    float64 `json:"railTime"`
+}
+
+// Rail is a rail fired by a player.
+type Rail struct {
+	Line
+	playerId  string
+	processed bool
+}
+
+func (p *Player) dead() bool {
+	return p.RespawnTime > 0
+}
+
+// die kills the player, setting his RespawnTime.
+func (p *Player) die() {
+	p.RespawnTime = playerRespawnTimer
+}
+
+// timePassed notifies the player of how much time passed,
+// reducing the respawn and rail time by deltaTime.
+func (p *Player) timePassed(deltaTime float64) {
+	p.RespawnTime -= deltaTime
+	p.RailTime -= deltaTime
+	if p.RespawnTime < 0 {
+		p.RespawnTime = 0
+	}
+	if p.RailTime < 0 {
+		p.RailTime = 0
+	}
+}
+
+// boundingCircle returns the bounding circle of the player.
+func (p *Player) boundingCircle() Circle {
+	return Circle{
+		Center: p.Position,
+		Radius: playerBoundingRadius,
+	}
 }
 
 // NewPlayer creates a new player with a random skin.
@@ -16,46 +63,75 @@ func NewPlayer() *Player {
 	return &Player{Skin: skins[rand.Int()%len(skins)]}
 }
 
-// move moves the player for distance d.
+// move moves the player for distance d in his direction.
 func (p *Player) move(d float64) {
 	p.Position = p.Position.Translate(p.Direction.Scale(d))
 }
 
-// FireRail causes the player to fire a rail.
-func (p *Player) FireRail() {
+// Game holds the game state.
+type Game struct {
+	Players map[string]*Player `json:"players"`
+	Rails   []*Rail            `json:"rails"`
 }
 
-// Die kills the player.
-func (p *Player) Die() {
-}
-
-// Engine is the game engine. It holds the gameplay settings and the current game state.
+// Engine is the game engine. It holds the gameplay settings
+// and the current game state.
 type Engine struct {
-	Timestep    float64 // Engine timestep in milliseconds.
-	PlayerSpeed float64 // Player speed in pixels per millisecond.
-	Players     map[string]*Player
+	timestep    float64 // Engine timestep in milliseconds.
+	playerSpeed float64 // Player speed in pixels per millisecond.
+	Game        `json:"game"`
 }
 
 // NewEngine creates a new engine.
-func NewEngine(Timestep, PlayerSpeed float64) *Engine {
+func NewEngine(timestep, playerSpeed float64) *Engine {
 	return &Engine{
-		Timestep:    Timestep,
-		PlayerSpeed: PlayerSpeed,
-		Players:     make(map[string]*Player),
+		timestep:    timestep,
+		playerSpeed: playerSpeed,
+		Game: Game{
+			Players: make(map[string]*Player),
+		},
 	}
 }
 
 // Update advances the game engine state. deltaTime should be the time elapsed
-// since the previous call to update. This is required because the engine operates
-// within fixed timesteps. The remaining time that doesn't fall within the timestep is
-// returned. This value will always be smaller than e.Timestep.
+// since the previous call to Update. This is required because the engine operates
+// within fixed timesteps. The remaining time that doesn't fall within the timestep
+// is returned. This value will always be smaller than e.timestep.
 func (e *Engine) Update(deltaTime float64) (remainingTime float64) {
-	for deltaTime >= e.Timestep {
-		deltaTime -= e.Timestep
-		for _, player := range e.Players {
-			player.move(e.PlayerSpeed * e.Timestep)
+	playerHitsRail := func(playerId string, player *Player) bool {
+		for _, rail := range e.Rails {
+			// Avoid players hitting themselves with rails
+			if playerId == rail.playerId {
+				continue
+			}
+			if rail.Intersects(player.boundingCircle()) {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, player := range e.Players {
+		player.timePassed(deltaTime)
+	}
+
+	for deltaTime >= e.timestep {
+		deltaTime -= e.timestep
+		for playerId, player := range e.Players {
+			if player.dead() {
+				continue
+			}
+			player.move(e.playerSpeed * e.timestep)
+			if playerHitsRail(playerId, player) {
+				e.Players[playerId].die()
+			}
 		}
 	}
+
+	for _, rail := range e.Rails {
+		rail.processed = true
+	}
+
 	return deltaTime
 }
 
@@ -67,4 +143,32 @@ func (e *Engine) AddPlayer(id string, p *Player) {
 // RemovePlayer removes a player from the simulation.
 func (e *Engine) RemovePlayer(id string) {
 	delete(e.Players, id)
+}
+
+// StateSent is called when the engine state is sent to the client.
+// This allows the engine to clear all processed rails.
+func (e *Engine) StateSent() {
+	oldRails := e.Rails
+	e.Rails = nil
+	for _, rail := range oldRails {
+		if !rail.processed {
+			e.Rails = append(e.Rails, rail)
+		}
+	}
+}
+
+// FireRail causes player playerId to fire a rail in direction railDirection.
+func (e *Engine) FireRail(playerId string, railDirection Vector) {
+	player, ok := e.Players[playerId]
+	if !ok || player.RailTime > 0 {
+		return
+	}
+	player.RailTime = railTimer
+	e.Rails = append(e.Rails, &Rail{
+		Line: Line{
+			Start: player.Position,
+			// TODO Calculate Offset properly
+			Offset: railDirection.Scale(maxRailLength),
+		},
+	})
 }

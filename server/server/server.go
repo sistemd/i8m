@@ -31,7 +31,8 @@ func mainLoop(newClients <-chan *client) {
 				engine.RemovePlayer(client.id)
 				continue
 			}
-			client.sendStateMessage(engine)
+			client.sendGameStateMessage(engine)
+			engine.StateSent()
 		}
 	}
 
@@ -50,7 +51,7 @@ func mainLoop(newClients <-chan *client) {
 		updateEngine()
 
 		for _, client := range clients {
-			client.handleMessages()
+			client.handleMessages(engine)
 		}
 	}
 }
@@ -67,7 +68,13 @@ func Start(staticFilesRoot string) {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
+		defer func() {
+			err := r.Body.Close()
+			if err != nil {
+				log.Printf("failed to close request body: %v", err)
+			}
+		}()
+
 		if websocket.IsWebSocketUpgrade(r) {
 			conn, err := upgrader.Upgrade(w, r, nil)
 			if err != nil {
@@ -85,5 +92,6 @@ func Start(staticFilesRoot string) {
 		}
 	})
 
-	http.ListenAndServe(":8080", mux)
+	err := http.ListenAndServe(":8080", mux)
+	log.Fatalf("failed to start server: %v", err)
 }

@@ -33,7 +33,10 @@ func (c *client) listenForMessages() {
 		var m messageFromClient
 		err := c.conn.ReadJSON(&m)
 		if err != nil {
-			c.conn.Close()
+			err = c.conn.Close()
+			if err != nil {
+				log.Printf("failed to close a connection: %v", err)
+			}
 			c.conn = nil
 			return
 		}
@@ -42,13 +45,16 @@ func (c *client) listenForMessages() {
 }
 
 // handleMessages updates the client direction based on his input.
-func (c *client) handleMessages() {
+func (c *client) handleMessages(engine *engine.Engine) {
 Loop:
 	for {
 		select {
 		case message := <-c.messages:
 			if message.Direction != nil {
 				c.player.Direction = *message.Direction
+			}
+			if message.Rail != nil {
+				engine.FireRail(c.id, message.Rail.Direction)
 			}
 		default:
 			break Loop
@@ -63,8 +69,8 @@ func (c *client) sendMessage(msg *messageForClient) {
 	}
 }
 
-func (c *client) sendStateMessage(engine *engine.Engine) {
-	c.sendMessage(&messageForClient{State: engine.Players})
+func (c *client) sendGameStateMessage(engine *engine.Engine) {
+	c.sendMessage(&messageForClient{Game: engine.Game})
 }
 
 func (c *client) sendIDMessage() {
@@ -74,12 +80,15 @@ func (c *client) sendIDMessage() {
 // messageForClient is a message that gets sent from the server to the client.
 // This type is designed to be encoded into JSON.
 type messageForClient struct {
-	ID    string                    `json:"id,omitempty"`
-	State map[string]*engine.Player `json:"state,omitempty"`
+	ID   string      `json:"id,omitempty"`
+	Game engine.Game `json:"game,omitempty"`
 }
 
 // messageFromClient is a message that gets sent from the client to the server.
 // This type will typically be decoded from JSON.
 type messageFromClient struct {
 	Direction *engine.Vector `json:"direction"`
+	Rail      *struct {
+		Direction engine.Vector `json:"direction"`
+	} `json:"rail"`
 }
