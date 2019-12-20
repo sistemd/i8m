@@ -3,6 +3,7 @@ interface Keys {
     ArrowRight: boolean
     ArrowUp: boolean
     ArrowDown: boolean
+    ' ': boolean
 }
 
 export type Key = keyof Keys
@@ -12,10 +13,11 @@ const keys: Keys = {
     ArrowRight: false,
     ArrowUp: false,
     ArrowDown: false,
+    ' ': false,
 }
 
-export function trackKeyboard() {
-    function keyHandler(value: boolean) {
+export function trackKeys() {
+    function keyboardHandler(value: boolean) {
         return (event: KeyboardEvent) => {
             for (const key in keys) {
                 if (event.key === key) {
@@ -25,8 +27,8 @@ export function trackKeyboard() {
         }
     }
 
-    document.onkeydown = keyHandler(true)
-    document.onkeyup = keyHandler(false)
+    document.onkeydown = keyboardHandler(true)
+    document.onkeyup = keyboardHandler(false)
 }
 
 export function keyIsDown(key: Key): boolean {
@@ -51,10 +53,28 @@ export interface Vector {
     y: number
 }
 
-export interface GameState {
-    [playerId: string]: {
-        position: Vector,
-        direction: Vector,
-        skin: string,
+export function intensity(v: Vector): number {
+    return Math.sqrt(v.x * v.x + v.y * v.y)
+}
+
+export function normalized(v: Vector): Vector {
+    const a = intensity(v)
+    return {
+        x: v.x / a,
+        y: v.y / a,
     }
+}
+
+export interface Game {
+    players: {
+        [playerId: string]: {
+            position: Vector,
+            direction: Vector,
+            skin: string,
+        }
+    }
+    rails: Array<{
+        start: Vector,
+        offset: Vector,
+    }>
 }
