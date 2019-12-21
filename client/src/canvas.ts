@@ -1,20 +1,44 @@
-import { Game, Vector } from './engine'
+import { Game, Rail } from './engine'
 
-const canvas = (document.getElementById('frame') as HTMLCanvasElement)
-    .getContext('2d') as CanvasRenderingContext2D
+interface RailDrawing {
+    rail: Rail
+    timestamp: DOMHighResTimeStamp
+}
 
-export function drawGame(game: Game): void {
-    canvas.clearRect(0, 0, 500, 500)
-    for (const { position, skin } of Object.values(game.players)) {
-        canvas.fillStyle = skin
-        canvas.fillRect(position.x, position.y, 20, 20)
+const railDisplayDuration = 500 // milliseconds
+
+export class Drawing {
+    private rails: RailDrawing[] = []
+    private canvas: CanvasRenderingContext2D
+
+    constructor() {
+        this.canvas = (document.getElementById('frame') as HTMLCanvasElement)
+            .getContext('2d') as CanvasRenderingContext2D
     }
 
-    if (game.rails === null)
-        return
+    addRails(rails: Rail[], timestamp: number): void {
+            this.rails.push(...rails.map(rail => {
+                return { rail, timestamp }
+            }))
+    }
 
-    for (const { start, offset } of Object.values(game.rails)) {
-        canvas.fillStyle = 'black'
-        canvas.fillRect(start.x, start.y, offset.x + 5, offset.y + 5)
+    drawGame(game: Game, timestamp: number): void {
+        // Drop rails drawn for longer than railDisplayDuration milliseconds.
+        this.rails = this.rails.filter(
+            railDrawing => timestamp - railDrawing.timestamp < railDisplayDuration)
+
+        this.canvas.clearRect(0, 0, 500, 500)
+        if (game.players !== null) {
+            for (const player of Object.values(game.players)) {
+                this.canvas.fillStyle = player.skin
+                this.canvas.fillRect(player.position.x, player.position.y, 20, 20)
+            }
+        }
+
+        for (const { rail, timestamp } of this.rails) {
+            // XXX Fix this
+            this.canvas.fillStyle = 'black'
+            this.canvas.fillRect(rail.start.x, rail.start.y, rail.offset.x + 5, rail.offset.y + 5)
+        }
     }
 }

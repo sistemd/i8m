@@ -1,5 +1,5 @@
 import { trackKeys, mainLoop, keyIsDown, Game, normalized } from './engine'
-import { drawGame } from './canvas'
+import { Drawing } from './canvas'
 
 let direction = { x:0, y:0 }
 
@@ -48,11 +48,15 @@ function updatePlayerDirection() {
     }
 
     direction = normalized(direction)
-    direction = { x: 1, y: 0 }
 }
+
+const drawing = new Drawing()
 
 webSocket.onmessage = event => {
     const message = JSON.parse(event.data)
+    if (message.game.rails)
+        drawing.addRails(message.game.rails, performance.now())
+
     if (message.game)
         game = message.game as Game
 }
@@ -64,9 +68,9 @@ webSocket.onopen = () => {
             direction,
         }))
     }, 5)
-    mainLoop(dt => {
+    mainLoop((timestamp, dt) => {
         updatePlayerDirection()
         if (game !== undefined)
-            drawGame(game)
+            drawing.drawGame(game, timestamp)
     })
 }

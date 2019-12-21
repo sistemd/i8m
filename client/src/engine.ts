@@ -35,13 +35,13 @@ export function keyIsDown(key: Key): boolean {
     return keys[key] || false
 }
 
-export function mainLoop(cb: (dt: number) => void)  {
+export function mainLoop(cb: (timestamp: number, dt: number) => void)  {
     let lastTime = performance.now()
 
     function update(time: number) {
         const dt = time - lastTime
         lastTime = time
-        cb(dt)
+        cb(time, dt)
         requestAnimationFrame(update)
     }
 
@@ -65,16 +65,18 @@ export function normalized(v: Vector): Vector {
     }
 }
 
+export interface Player {
+    position: Vector
+    direction: Vector
+    skin: string
+}
+
+export interface Rail {
+    start: Vector
+    offset: Vector
+}
+
 export interface Game {
-    players: {
-        [playerId: string]: {
-            position: Vector,
-            direction: Vector,
-            skin: string,
-        }
-    }
-    rails: Array<{
-        start: Vector,
-        offset: Vector,
-    }>
+    players: { [playerId: string]: Player }
+    rails: Rail[]
 }
