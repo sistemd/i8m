@@ -2,12 +2,11 @@ package engine
 
 import "math/rand"
 
-const maxRailLength = 50
+const maxRailLength = 500
 
 const playerBoundingRadius = 10
 
-// playerRespawnTimer is the respawn timer in milliseconds.
-const playerRespawnTimer = 3000
+const playerRespawnTimer = 3000 // milliseconds.
 
 const railTimer = 1000
 
@@ -23,7 +22,7 @@ type Player struct {
 // Rail is a rail fired by a player.
 type Rail struct {
 	Line
-	playerId  string
+	player    *Player
 	processed bool
 }
 
@@ -31,22 +30,8 @@ func (p *Player) dead() bool {
 	return p.RespawnTime > 0
 }
 
-// die kills the player, setting his RespawnTime.
 func (p *Player) die() {
 	p.RespawnTime = playerRespawnTimer
-}
-
-// timePassed notifies the player of how much time passed,
-// reducing the respawn and rail time by deltaTime.
-func (p *Player) timePassed(deltaTime float64) {
-	p.RespawnTime -= deltaTime
-	p.RailTime -= deltaTime
-	if p.RespawnTime < 0 {
-		p.RespawnTime = 0
-	}
-	if p.RailTime < 0 {
-		p.RailTime = 0
-	}
 }
 
 // boundingCircle returns the bounding circle of the player.
@@ -98,10 +83,29 @@ func NewEngine(timestep, playerSpeed float64) *Engine {
 // within fixed timesteps. The remaining time that doesn't fall within the timestep
 // is returned. This value will always be smaller than e.timestep.
 func (e *Engine) Update(deltaTime float64) (remainingTime float64) {
-	playerHitsRail := func(playerId string, player *Player) bool {
+	reduceRailTime := func(p *Player) {
+		p.RailTime -= deltaTime
+		if p.RailTime < 0 {
+			p.RailTime = 0
+		}
+	}
+
+	reduceRespawnTime := func(p *Player) {
+		p.RespawnTime -= deltaTime
+		if p.RespawnTime < 0 {
+			p.RespawnTime = 0
+		}
+	}
+
+	for _, player := range e.Players {
+		reduceRailTime(player)
+		reduceRespawnTime(player)
+	}
+
+	playerHitsRail := func(player *Player) bool {
 		for _, rail := range e.Rails {
 			// Avoid players hitting themselves with rails
-			if playerId == rail.playerId {
+			if player == rail.player {
 				continue
 			}
 			if rail.Intersects(player.boundingCircle()) {
@@ -111,20 +115,20 @@ func (e *Engine) Update(deltaTime float64) (remainingTime float64) {
 		return false
 	}
 
-	for _, player := range e.Players {
-		player.timePassed(deltaTime)
+	updatePlayer := func(player *Player) {
+		if player.dead() {
+			return
+		}
+		player.move(e.playerSpeed * e.timestep)
+		if playerHitsRail(player) {
+			player.die()
+		}
 	}
 
 	for deltaTime >= e.timestep {
 		deltaTime -= e.timestep
-		for playerId, player := range e.Players {
-			if player.dead() {
-				continue
-			}
-			player.move(e.playerSpeed * e.timestep)
-			if playerHitsRail(playerId, player) {
-				e.Players[playerId].die()
-			}
+		for _, player := range e.Players {
+			updatePlayer(player)
 		}
 	}
 
@@ -160,7 +164,7 @@ func (e *Engine) StateSent() {
 // FireRail causes player playerId to fire a rail in direction railDirection.
 func (e *Engine) FireRail(playerId string, railDirection Vector) {
 	player, ok := e.Players[playerId]
-	if !ok || player.RailTime > 0 {
+	if !ok || player.RailTime > 0 || player.dead() {
 		return
 	}
 	player.RailTime = railTimer
@@ -170,5 +174,6 @@ func (e *Engine) FireRail(playerId string, railDirection Vector) {
 			// TODO Calculate Offset properly
 			Offset: railDirection.Scale(maxRailLength),
 		},
+		player: player,
 	})
 }
