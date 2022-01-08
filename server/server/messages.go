@@ -62,7 +62,7 @@ func fromVectorMessage(msg vectorMessage) engine.Vector {
 
 func toPlayerMessage(player engine.Player) playerMessage {
 	return playerMessage{
-		Position:    toVectorMessage(player.Position),
+		Position:    toVectorMessage(player.Position()),
 		Direction:   toVectorMessage(player.Direction),
 		Skin:        player.Skin,
 		RespawnTime: player.RespawnTime,

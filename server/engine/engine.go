@@ -1,6 +1,12 @@
 package engine
 
-import "math/rand"
+import (
+	"log"
+	"math/rand"
+
+	"github.com/ByteArena/box2d"
+	"github.com/davecgh/go-spew/spew"
+)
 
 const maxRailLength = 500
 
@@ -10,16 +16,23 @@ const playerRespawnTimer = 3000 // milliseconds.
 
 const railTimer = 1000
 
+type PhysicsEntity interface {
+}
+
+type Physics interface {
+	CreateEntity() PhysicsEntity
+}
+
 // PlayerID uniquely identifies each player in the game.
 type PlayerID string
 
 // Player represents a player in the game.
 type Player struct {
-	Position    Vector  `json:"position"`
-	Direction   Vector  `json:"direction"`
-	Skin        string  `json:"skin"`
-	RespawnTime float64 `json:"respawnTime"`
+	Direction   Vector
+	Skin        string
+	RespawnTime float64
 	railTime    float64
+	entity      *box2d.B2Body
 }
 
 // Rail is a rail fired by a player.
@@ -27,6 +40,11 @@ type Rail struct {
 	Line
 	player    *Player
 	processed bool
+}
+
+func (p *Player) Position() Vector {
+	pos := p.entity.GetPosition()
+	return Vector{pos.X, pos.Y}
 }
 
 func (p *Player) dead() bool {
@@ -40,19 +58,14 @@ func (p *Player) die() {
 // boundingCircle returns the bounding circle of the player.
 func (p *Player) boundingCircle() Circle {
 	return Circle{
-		Center: p.Position,
+		Center: p.Position(),
 		Radius: playerBoundingRadius,
 	}
 }
 
-func newPlayer() *Player {
+func newPlayer(body *box2d.B2Body) *Player {
 	skins := [...]string{"red", "green", "blue", "yellow", "orange", "purple"}
-	return &Player{Skin: skins[rand.Int()%len(skins)]}
-}
-
-// move moves the player for distance d in his direction.
-func (p *Player) move(d float64) {
-	p.Position = p.Position.Translate(p.Direction.Scale(d))
+	return &Player{Skin: skins[rand.Int()%len(skins)], entity: body}
 }
 
 // Game holds the game state.
@@ -66,17 +79,22 @@ type game struct {
 type Engine struct {
 	timestep    float64 // Engine timestep in milliseconds.
 	playerSpeed float64 // Player speed in pixels per millisecond.
-	game        `json:"game"`
+	game
+	world box2d.B2World
 }
 
 // NewEngine creates a new engine.
 func NewEngine(timestep, playerSpeed float64) *Engine {
+	world := box2d.MakeB2World(box2d.B2Vec2{})
+	log.Printf("%s", spew.Sdump(world))
+
 	return &Engine{
 		timestep:    timestep,
 		playerSpeed: playerSpeed,
 		game: game{
 			players: make(map[PlayerID]*Player),
 		},
+		world: world,
 	}
 }
 
@@ -121,7 +139,13 @@ func (e *Engine) Update(deltaTime float64) (remainingTime float64) {
 		if player.dead() {
 			return
 		}
-		player.move(e.playerSpeed * e.timestep)
+
+		// TODO Set entity speed using direction?
+		velocity := player.Direction.Scale(e.playerSpeed)
+		player.entity.SetLinearVelocity(box2d.MakeB2Vec2(velocity.X, velocity.Y))
+		e.world.Step(e.timestep, 8, 3)
+		log.Printf("%s", spew.Sprint(player.Position()))
+
 		if playerHitsRail(player) {
 			player.die()
 		}
@@ -143,7 +167,21 @@ func (e *Engine) Update(deltaTime float64) (remainingTime float64) {
 
 // AddPlayer adds a new player to the simulation.
 func (e *Engine) AddPlayer(id PlayerID) {
-	e.players[id] = newPlayer()
+	bodyDef := box2d.MakeB2BodyDef()
+	bodyDef.Type = box2d.B2BodyType.B2_kinematicBody
+	bodyDef.Position.Set(0, 0)
+	body := e.world.CreateBody(&bodyDef)
+
+	shape := box2d.MakeB2CircleShape()
+	shape.SetRadius(1.0)
+
+	fixtureDef := box2d.MakeB2FixtureDef()
+	fixtureDef.Shape = shape
+	fixtureDef.Density = 1.0
+	fixtureDef.Friction = 0.3
+	body.CreateFixtureFromDef(&fixtureDef)
+
+	e.players[id] = newPlayer(body)
 }
 
 // SetPlayerDirection sets the movement direction of player with the given id.
@@ -179,7 +217,7 @@ func (e *Engine) FireRail(playerID PlayerID, railDirection Vector) {
 	player.railTime = railTimer
 	e.rails = append(e.rails, &Rail{
 		Line: Line{
-			Start: player.Position,
+			Start: player.Position(),
 			// TODO Calculate Offset properly
 			Offset: railDirection.Scale(maxRailLength),
 		},

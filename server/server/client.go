@@ -3,6 +3,7 @@ package server
 import (
 	"log"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/ennmichael/i8m/server/engine"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -51,9 +52,11 @@ Loop:
 		select {
 		case message := <-c.messages:
 			if message.Direction != nil {
+				// log.Printf("Received direction update message %s", spew.Sdump(message))
 				c.engine.SetPlayerDirection(c.id, fromVectorMessage(*message.Direction))
 			}
 			if message.Rail != nil {
+				log.Printf("Received rail fire message %s", spew.Sdump(message))
 				engine.FireRail(c.id, fromVectorMessage(message.Rail.Direction))
 			}
 		default:
