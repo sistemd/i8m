@@ -4,8 +4,8 @@ import "math"
 
 // Vector is a free 2D vector.
 type Vector struct {
-	X float64 `json:"x"`
-	Y float64 `json:"y"`
+	X float64
+	Y float64
 }
 
 // Scale returns a new vector scaled by n.
@@ -25,8 +25,8 @@ func (v Vector) Translate(a Vector) Vector {
 }
 
 type Line struct {
-	Start  Vector `json:"start"`
-	Offset Vector `json:"offset"`
+	Start  Vector
+	Offset Vector
 }
 
 func (l Line) Intersects(c Circle) bool {

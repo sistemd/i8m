@@ -11,7 +11,7 @@ import (
 
 const serverMessagingTimeout = 10 * time.Millisecond
 
-func mainLoop(newClients <-chan *client) {
+func mainLoop(newConns <-chan *websocket.Conn) {
 	var dt float64
 	var clients []*client
 	engine := engine.NewEngine(1, 0.1)
@@ -32,16 +32,17 @@ func mainLoop(newClients <-chan *client) {
 				continue
 			}
 			client.sendGameStateMessage(engine)
-			engine.StateSent()
+			engine.PostUpdate()
 		}
 	}
 
 	for {
 		select {
-		case newClient := <-newClients:
+		case newConn := <-newConns:
+			newClient := newClient(engine, newConn)
 			// Right when a player connects, they are notified of their ID.
 			newClient.sendIDMessage()
-			engine.AddPlayer(newClient.id, newClient.player)
+			engine.AddPlayer(newClient.id)
 			clients = append(clients, newClient)
 		case <-messageTimeout:
 			sendMessages()
@@ -62,8 +63,8 @@ func mainLoop(newClients <-chan *client) {
 // index.html from the staticFilesRoot folder.
 func Start(staticFilesRoot string) {
 	var upgrader websocket.Upgrader
-	newClients := make(chan *client, 10) // XXX A more meaningful value for the buffer size?
-	go mainLoop(newClients)
+	newConnections := make(chan *websocket.Conn, 10) // XXX A more meaningful value for the buffer size?
+	go mainLoop(newConnections)
 
 	mux := http.NewServeMux()
 
@@ -81,7 +82,7 @@ func Start(staticFilesRoot string) {
 				log.Printf("Failed to upgrade WebSocket connection: %v\n", err)
 				return
 			}
-			newClients <- newClient(conn)
+			newConnections <- conn
 			return
 		}
 

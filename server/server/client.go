@@ -9,17 +9,17 @@ import (
 )
 
 type client struct {
-	id       string
+	id       engine.PlayerID
 	messages chan messageFromClient
-	player   *engine.Player
+	engine   *engine.Engine
 	conn     *websocket.Conn
 }
 
-func newClient(conn *websocket.Conn) *client {
+func newClient(e *engine.Engine, conn *websocket.Conn) *client {
 	c := &client{
-		id:       uuid.New().String(),
+		id:       engine.PlayerID(uuid.New().String()),
 		messages: make(chan messageFromClient, 20),
-		player:   engine.NewPlayer(),
+		engine:   e,
 		conn:     conn,
 	}
 	go c.listenForMessages()
@@ -51,10 +51,10 @@ Loop:
 		select {
 		case message := <-c.messages:
 			if message.Direction != nil {
-				c.player.Direction = *message.Direction
+				c.engine.SetPlayerDirection(c.id, fromVectorMessage(*message.Direction))
 			}
 			if message.Rail != nil {
-				engine.FireRail(c.id, message.Rail.Direction)
+				engine.FireRail(c.id, fromVectorMessage(message.Rail.Direction))
 			}
 		default:
 			break Loop
@@ -70,25 +70,9 @@ func (c *client) sendMessage(msg *messageForClient) {
 }
 
 func (c *client) sendGameStateMessage(engine *engine.Engine) {
-	c.sendMessage(&messageForClient{Game: engine.Game})
+	c.sendMessage(&messageForClient{Game: toGameMessage(engine)})
 }
 
 func (c *client) sendIDMessage() {
-	c.sendMessage(&messageForClient{ID: c.id})
-}
-
-// messageForClient is a message that gets sent from the server to the client.
-// This type is designed to be encoded into JSON.
-type messageForClient struct {
-	ID   string      `json:"id,omitempty"`
-	Game engine.Game `json:"game,omitempty"`
-}
-
-// messageFromClient is a message that gets sent from the client to the server.
-// This type will typically be decoded from JSON.
-type messageFromClient struct {
-	Direction *engine.Vector `json:"direction"`
-	Rail      *struct {
-		Direction engine.Vector `json:"direction"`
-	} `json:"rail"`
+	c.sendMessage(&messageForClient{ID: string(c.id)})
 }
