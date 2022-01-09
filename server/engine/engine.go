@@ -11,11 +11,13 @@ var playerRespawnTimer = 1500 * time.Millisecond
 
 const railTimer = 1 * time.Second
 
+// PhysicsEntity is the interface to an entity in a physical simulation.
 type PhysicsEntity interface {
 	Position() Vector
 	SetVelocity(velocity Vector)
 }
 
+// Physics is the interface to a physical simulation.
 type Physics interface {
 	CreateTerrain(terrain Terrain)
 	CreateEntity(radius float64) PhysicsEntity
@@ -27,7 +29,7 @@ type PlayerID string
 
 // Player represents a player in the game.
 type Player struct {
-	Direction   Vector
+	Direction   NormalizedVector
 	Skin        string
 	Radius      float64
 	RespawnTime float64
@@ -42,21 +44,17 @@ type Rail struct {
 	processed bool
 }
 
+// Terrain defines a static, never-chainging game terrain consisting of solid polygons.
 type Terrain struct {
 	Polygons []Polygon
 }
 
+// Polygon defines a polygon.
 type Polygon struct {
 	Points []Vector
 }
 
-// TODO Start Using these
-type Position Vector
-
-// TODO NewDirection to ensure vector is normalized
-
-type Direction Vector
-
+// Position returns the player's position in the world.
 func (p *Player) Position() Vector {
 	return p.entity.Position()
 }
@@ -69,26 +67,10 @@ func (p *Player) die() {
 	p.RespawnTime = playerRespawnTimer.Seconds()
 }
 
-// boundingCircle returns the bounding circle of the player.
-func (p *Player) boundingCircle() Circle {
-	return Circle{
-		Center: p.Position(),
-		Radius: playerBoundingRadius,
-	}
-}
-
 func newPlayer(entity PhysicsEntity) *Player {
 	skins := [...]string{"red", "green", "blue", "yellow", "orange", "purple"}
 	return &Player{Skin: skins[rand.Int()%len(skins)], entity: entity, Radius: playerBoundingRadius}
 }
-
-// Game holds the game state.
-type game struct {
-	players map[PlayerID]*Player
-	rails   []*Rail
-}
-
-// TODO Remove the distinction between "game" and "engine" and leave just "game"
 
 // Engine is the game engine. It holds the gameplay settings
 // and the current game state.
@@ -97,7 +79,8 @@ type Engine struct {
 	playerSpeed float64
 	physics     Physics
 	terrain     Terrain
-	game
+	players     map[PlayerID]*Player
+	rails       []*Rail
 }
 
 // NewEngine creates a new engine.
@@ -107,10 +90,8 @@ func NewEngine(timestep, playerSpeed float64, physics Physics, terrain Terrain) 
 		timestep:    timestep,
 		playerSpeed: playerSpeed,
 		terrain:     terrain,
-		game: game{
-			players: make(map[PlayerID]*Player),
-		},
-		physics: physics,
+		players:     make(map[PlayerID]*Player),
+		physics:     physics,
 	}
 }
 
@@ -138,16 +119,8 @@ func (e *Engine) Update(deltaTime float64) (remainingTime float64) {
 		reduceRespawnTime(player)
 	}
 
+	// TODO Should be a raycast, so this func is probably unnecessary altogether
 	playerHitsRail := func(player *Player) bool {
-		for _, rail := range e.rails {
-			// Avoid players hitting themselves with rails
-			if player == rail.player {
-				continue
-			}
-			if rail.Intersects(player.boundingCircle()) {
-				return true
-			}
-		}
 		return false
 	}
 
@@ -156,7 +129,7 @@ func (e *Engine) Update(deltaTime float64) (remainingTime float64) {
 			return
 		}
 
-		velocity := player.Direction.Scale(e.playerSpeed)
+		velocity := player.Direction.Vector().Scale(e.playerSpeed)
 		player.entity.SetVelocity(velocity)
 
 		if playerHitsRail(player) {
@@ -188,7 +161,7 @@ func (e *Engine) AddPlayer(id PlayerID) {
 }
 
 // SetPlayerDirection sets the movement direction of player with the given id.
-func (e *Engine) SetPlayerDirection(id PlayerID, newDirection Vector) {
+func (e *Engine) SetPlayerDirection(id PlayerID, newDirection NormalizedVector) {
 	e.players[id].Direction = newDirection
 }
 
@@ -211,7 +184,7 @@ func (e *Engine) PostUpdate() {
 }
 
 // FireRail causes player playerId to fire a rail in direction railDirection.
-func (e *Engine) FireRail(playerID PlayerID, railDirection Vector) {
+func (e *Engine) FireRail(playerID PlayerID, railDirection NormalizedVector) {
 	player, ok := e.players[playerID]
 	if !ok || player.railTime > 0 || player.dead() {
 		// TODO Log error? Do something
@@ -220,10 +193,10 @@ func (e *Engine) FireRail(playerID PlayerID, railDirection Vector) {
 	player.railTime = railTimer.Seconds()
 	e.rails = append(e.rails, &Rail{
 		Line: Line{
-			Start: player.Position(),
+			Start: Vector(player.Position()),
 			// TODO Calculate Offset properly
 			// TODO Should be a raycast... this is some bs
-			Offset: railDirection.Scale(10),
+			Offset: railDirection.Vector().Scale(10),
 		},
 		player: player,
 	})
@@ -232,7 +205,7 @@ func (e *Engine) FireRail(playerID PlayerID, railDirection Vector) {
 // Players returns the observable state of all players in the game.
 func (e *Engine) Players() map[PlayerID]Player {
 	result := make(map[PlayerID]Player)
-	for id, player := range e.game.players {
+	for id, player := range e.players {
 		result[id] = *player
 	}
 	return result
@@ -241,7 +214,7 @@ func (e *Engine) Players() map[PlayerID]Player {
 // Rails returns the observable state of all rails in the game.
 func (e *Engine) Rails() []Rail {
 	var result []Rail
-	for _, rail := range e.game.rails {
+	for _, rail := range e.rails {
 		result = append(result, *rail)
 	}
 	return result

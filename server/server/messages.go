@@ -90,7 +90,7 @@ func fromVectorMessage(msg vectorMessage) engine.Vector {
 func toPlayerMessage(player engine.Player) playerMessage {
 	return playerMessage{
 		Position:    toVectorMessage(player.Position()),
-		Direction:   toVectorMessage(player.Direction),
+		Direction:   toVectorMessage(player.Direction.Vector()),
 		Skin:        player.Skin,
 		RespawnTime: player.RespawnTime,
 		Radius:      player.Radius,

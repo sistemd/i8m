@@ -62,11 +62,11 @@ Loop:
 			}
 			if message.Direction != nil {
 				log.Printf("Received direction update message (%v, %v)", message.Direction.X, message.Direction.Y)
-				c.engine.SetPlayerDirection(c.id, fromVectorMessage(*message.Direction))
+				c.engine.SetPlayerDirection(c.id, fromVectorMessage(*message.Direction).Normalized())
 			}
 			if message.Rail != nil {
 				log.Printf("Received rail fire message (%v, %v)", message.Rail.Direction.X, message.Direction.Y)
-				engine.FireRail(c.id, fromVectorMessage(message.Rail.Direction))
+				engine.FireRail(c.id, fromVectorMessage(message.Rail.Direction).Normalized())
 			}
 		default:
 			break Loop

@@ -8,6 +8,11 @@ type Vector struct {
 	Y float64
 }
 
+// NormalizedVector represents a normalized vector.
+type NormalizedVector struct {
+	vector Vector
+}
+
 // Scale returns a new vector scaled by n.
 func (v Vector) Scale(n float64) Vector {
 	return Vector{
@@ -24,32 +29,39 @@ func (v Vector) Translate(a Vector) Vector {
 	}
 }
 
+// Intensity returns the intensity (length) of the vector.
+func (v Vector) Intensity() float64 {
+	return math.Sqrt(v.X*v.X + v.Y + v.Y)
+}
+
+// Normalized returns the normalized version of the vector, i.e. a new vector
+// which points in the same direction, but has the length of 1.
+func (v Vector) Normalized() NormalizedVector {
+	a := v.Intensity()
+	if a == 0 {
+		return NormalizedVector{}
+	}
+
+	return NormalizedVector{
+		vector: Vector{
+			X: v.X / a,
+			Y: v.Y / a,
+		},
+	}
+}
+
+// Vector returns the x and y values for this normalized vector.
+func (n NormalizedVector) Vector() Vector {
+	return n.vector
+}
+
+// Line represents a line.
 type Line struct {
 	Start  Vector
 	Offset Vector
 }
 
-func (l Line) Intersects(c Circle) bool {
-	x1 := l.Start.X - c.Center.X
-	x2 := l.Offset.X
-	y1 := l.Start.Y - c.Center.Y
-	y2 := l.Offset.Y
-
-	// Quadratic equation
-	a := x2*x2 + y2*y2
-	b := 2 * (x1*x2 + y1*y2)
-	c_ := x1*x1 + y1*y1 - c.Radius*c.Radius
-
-	D := math.Sqrt(b*b - 4*a*c_)
-	t1 := (-b + D) / (2 * a)
-	t2 := (-b - D) / (2 * a)
-	return t1 <= 1 || t2 <= 1
-}
-
-func (c Circle) Intersects(l Line) bool {
-	return l.Intersects(c)
-}
-
+// Circle represents a circle.
 type Circle struct {
 	Center Vector
 	Radius float64
