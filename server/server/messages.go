@@ -13,11 +13,19 @@ type messageForClient struct {
 // messageFromClient is a message that gets sent from the client to the server.
 // This type will typically be decoded from JSON.
 type messageFromClient struct {
-	FetchTerrain *bool          `json:"terrain"`
+	FetchTerrain *bool          `json:"fetchTerrain"`
 	Direction    *vectorMessage `json:"direction"`
 	Rail         *struct {
 		Direction vectorMessage `json:"direction"`
 	} `json:"rail"`
+}
+
+type terrainMessage struct {
+	Polygons []polygonMessage `json:"polygons"`
+}
+
+type polygonMessage struct {
+	Points []vectorMessage `json:"points"`
 }
 
 type gameMessage struct {
@@ -35,6 +43,7 @@ type playerMessage struct {
 	Direction   vectorMessage `json:"direction"`
 	Skin        string        `json:"skin"`
 	RespawnTime float64       `json:"respawnTime"`
+	Radius      float64       `json:"radius"`
 }
 
 type railMessage struct {
@@ -42,13 +51,26 @@ type railMessage struct {
 	Offset vectorMessage `json:"offset"`
 }
 
-type terrainMessage struct {
-}
-
 func toGameMessage(engine *engine.Engine) *gameMessage {
 	return &gameMessage{
 		Players: toPlayerMessages(engine.Players()),
 	}
+}
+
+func toTerrainMessage(terrain engine.Terrain) *terrainMessage {
+	var polygons []polygonMessage
+	for _, polygon := range terrain.Polygons {
+		polygons = append(polygons, toPolygonMessage(polygon))
+	}
+	return &terrainMessage{Polygons: polygons}
+}
+
+func toPolygonMessage(polygon engine.Polygon) polygonMessage {
+	var points []vectorMessage
+	for _, point := range polygon.Points {
+		points = append(points, toVectorMessage(point))
+	}
+	return polygonMessage{Points: points}
 }
 
 func toVectorMessage(vector engine.Vector) vectorMessage {
@@ -71,6 +93,7 @@ func toPlayerMessage(player engine.Player) playerMessage {
 		Direction:   toVectorMessage(player.Direction),
 		Skin:        player.Skin,
 		RespawnTime: player.RespawnTime,
+		Radius:      player.Radius,
 	}
 }
 

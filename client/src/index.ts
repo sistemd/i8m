@@ -130,7 +130,7 @@ class UserInput {
 class Game {
   private readonly webSocket: WebSocket;
   private readonly movementDirectionSender = new DirectionSender();
-  private staticTerrain?: StaticTerrain = undefined; // TODO
+  private terrain?: Terrain = undefined; // TODO
   // TODO In the future, this class should probably hold the player ID as well to know how to reconnect
 
   onGameStateUpdated?: (newState: GameState) => void;
@@ -145,7 +145,6 @@ class Game {
 
     input.onMovementDirectionChanged = (newDirection: Direction) => {
       if (this.movementDirectionSender.shouldSend(newDirection)) {
-        console.log(newDirection.direction.x, newDirection.direction.y);
         this.webSocket.send(
           JSON.stringify({
             direction: newDirection.direction,
@@ -171,23 +170,30 @@ class Game {
       if (message.game) {
         this.onGameStateUpdated?.call(undefined, message.game);
       }
-      if (message.staticTerrain) {
-        this.staticTerrain = message.staticTerrain;
+      if (message.terrain) {
+        this.terrain = message.terrain;
       }
     };
   }
 
-  getStaticTerrain(): StaticTerrain | undefined {
-    return this.staticTerrain;
+  getTerrain(): Terrain | undefined {
+    return this.terrain;
   }
 }
 
-interface StaticTerrain {}
+interface Polygon {
+  points: Vector[];
+}
+
+interface Terrain {
+  polygons: Polygon[];
+}
 
 interface Player {
   position: Vector;
   direction: Vector;
   skin: string;
+  radius: number;
 }
 
 interface Rail {
@@ -217,7 +223,7 @@ class Drawing {
     ).getContext("2d") as CanvasRenderingContext2D;
   }
 
-  drawGame(game: GameState): void {
+  drawGame(game: GameState, terrain: Terrain): void {
     const timestamp = performance.now();
 
     //this.addRails(game.rails, timestamp);
@@ -228,10 +234,24 @@ class Drawing {
     );
 
     this.canvas.clearRect(0, 0, 500, 500);
+
+    this.drawTerrain(terrain);
+
     if (game.players !== null) {
       for (const player of Object.values(game.players)) {
         this.canvas.fillStyle = player.skin;
-        this.canvas.fillRect(player.position.x, player.position.y, 20, 20);
+        this.canvas.beginPath();
+        console.log(player.radius);
+        this.canvas.ellipse(
+          player.position.x,
+          player.position.y,
+          player.radius,
+          player.radius,
+          0,
+          0,
+          2 * Math.PI
+        );
+        this.canvas.fill();
       }
     }
 
@@ -245,6 +265,28 @@ class Drawing {
         rail.offset.y + 5
       );
     }
+  }
+
+  private drawTerrain(terrain: Terrain) {
+    this.canvas.fillStyle = "black";
+    for (const polygon of terrain.polygons) {
+      this.drawPolygon(polygon);
+    }
+  }
+
+  private drawPolygon(polygon: Polygon) {
+    let started = false;
+    this.canvas.beginPath();
+    for (const point of polygon.points) {
+      if (!started) {
+        started = true;
+        this.canvas.moveTo(point.x, point.y);
+      } else {
+        this.canvas.lineTo(point.x, point.y);
+      }
+    }
+    this.canvas.closePath();
+    this.canvas.fill();
   }
 
   private addRails(rails: Rail[], timestamp: number): void {
@@ -261,7 +303,7 @@ function main() {
   const drawing = new Drawing();
 
   game.onGameStateUpdated = (gameState) => {
-    drawing.drawGame(gameState);
+    drawing.drawGame(gameState, game.getTerrain() ?? { polygons: [] });
   };
 
   game.start();

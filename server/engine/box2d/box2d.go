@@ -21,11 +21,22 @@ func NewPhysics() Box2dPhysics {
 }
 
 func (p Box2dPhysics) CreateTerrain(terrain engine.Terrain) {
+	staticBodyDef := box2d.MakeB2BodyDef()
+	staticBodyDef.Type = box2d.B2BodyType.B2_kinematicBody
+	staticBodyDef.Position.Set(0, 0)
+	staticBody := p.world.CreateBody(&staticBodyDef)
+
+	for _, polygon := range terrain.Polygons {
+		vertices := toBox2dVectors(polygon.Points)
+		chain := box2d.MakeB2ChainShape()
+		chain.CreateLoop(vertices, len(vertices))
+		staticBody.CreateFixture(&chain, 0)
+	}
 }
 
 func (p Box2dPhysics) CreateEntity(radius float64) engine.PhysicsEntity {
 	bodyDef := box2d.MakeB2BodyDef()
-	bodyDef.Type = box2d.B2BodyType.B2_kinematicBody
+	bodyDef.Type = box2d.B2BodyType.B2_dynamicBody
 	bodyDef.Position.Set(0, 0)
 	body := p.world.CreateBody(&bodyDef)
 
@@ -57,6 +68,14 @@ func (pe Box2dPhysicsEntity) Position() engine.Vector {
 
 func toBox2dVector(vec engine.Vector) box2d.B2Vec2 {
 	return box2d.MakeB2Vec2(vec.X, vec.Y)
+}
+
+func toBox2dVectors(vecs []engine.Vector) []box2d.B2Vec2 {
+	var result []box2d.B2Vec2
+	for _, vec := range vecs {
+		result = append(result, toBox2dVector(vec))
+	}
+	return result
 }
 
 func fromBox2dVector(vec box2d.B2Vec2) engine.Vector {

@@ -2,15 +2,14 @@ package engine
 
 import (
 	"math/rand"
+	"time"
 )
-
-const maxRailLength = 500
 
 const playerBoundingRadius = 10
 
-const playerRespawnTimer = 3000 // milliseconds.
+var playerRespawnTimer = 1500 * time.Millisecond
 
-const railTimer = 1000
+const railTimer = 1 * time.Second
 
 type PhysicsEntity interface {
 	Position() Vector
@@ -30,6 +29,7 @@ type PlayerID string
 type Player struct {
 	Direction   Vector
 	Skin        string
+	Radius      float64
 	RespawnTime float64
 	railTime    float64
 	entity      PhysicsEntity
@@ -66,7 +66,7 @@ func (p *Player) dead() bool {
 }
 
 func (p *Player) die() {
-	p.RespawnTime = playerRespawnTimer
+	p.RespawnTime = playerRespawnTimer.Seconds()
 }
 
 // boundingCircle returns the bounding circle of the player.
@@ -79,7 +79,7 @@ func (p *Player) boundingCircle() Circle {
 
 func newPlayer(entity PhysicsEntity) *Player {
 	skins := [...]string{"red", "green", "blue", "yellow", "orange", "purple"}
-	return &Player{Skin: skins[rand.Int()%len(skins)], entity: entity}
+	return &Player{Skin: skins[rand.Int()%len(skins)], entity: entity, Radius: playerBoundingRadius}
 }
 
 // Game holds the game state.
@@ -88,20 +88,25 @@ type game struct {
 	rails   []*Rail
 }
 
+// TODO Remove the distinction between "game" and "engine" and leave just "game"
+
 // Engine is the game engine. It holds the gameplay settings
 // and the current game state.
 type Engine struct {
 	timestep    float64
 	playerSpeed float64
 	physics     Physics
+	terrain     Terrain
 	game
 }
 
 // NewEngine creates a new engine.
-func NewEngine(timestep, playerSpeed float64, physics Physics) *Engine {
+func NewEngine(timestep, playerSpeed float64, physics Physics, terrain Terrain) *Engine {
+	physics.CreateTerrain(terrain)
 	return &Engine{
 		timestep:    timestep,
 		playerSpeed: playerSpeed,
+		terrain:     terrain,
 		game: game{
 			players: make(map[PlayerID]*Player),
 		},
@@ -178,7 +183,7 @@ func (e *Engine) Update(deltaTime float64) (remainingTime float64) {
 
 // AddPlayer adds a new player to the simulation.
 func (e *Engine) AddPlayer(id PlayerID) {
-	entity := e.physics.CreateEntity(1.0)
+	entity := e.physics.CreateEntity(playerBoundingRadius)
 	e.players[id] = newPlayer(entity)
 }
 
@@ -212,12 +217,13 @@ func (e *Engine) FireRail(playerID PlayerID, railDirection Vector) {
 		// TODO Log error? Do something
 		return
 	}
-	player.railTime = railTimer
+	player.railTime = railTimer.Seconds()
 	e.rails = append(e.rails, &Rail{
 		Line: Line{
 			Start: player.Position(),
 			// TODO Calculate Offset properly
-			Offset: railDirection.Scale(maxRailLength),
+			// TODO Should be a raycast... this is some bs
+			Offset: railDirection.Scale(10),
 		},
 		player: player,
 	})
@@ -237,6 +243,15 @@ func (e *Engine) Rails() []Rail {
 	var result []Rail
 	for _, rail := range e.game.rails {
 		result = append(result, *rail)
+	}
+	return result
+}
+
+// Terrain returns the static terrain of the game.
+func (e *Engine) Terrain() Terrain {
+	var result Terrain
+	for _, polygon := range e.terrain.Polygons {
+		result.Polygons = append(result.Polygons, polygon)
 	}
 	return result
 }

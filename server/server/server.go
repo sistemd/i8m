@@ -15,7 +15,13 @@ const serverMessagingTimeout = 10 * time.Millisecond
 func mainLoop(newConns <-chan *websocket.Conn) {
 	var dt float64
 	var clients []*client
-	engine := engine.NewEngine(1.0/30.0, 100, box2d.NewPhysics())
+	engine := engine.NewEngine(1.0/60.0, 100, box2d.NewPhysics(), engine.Terrain{Polygons: []engine.Polygon{
+		{Points: []engine.Vector{
+			{X: 30, Y: 250},
+			{X: 120, Y: 30},
+			{X: 30, Y: 20},
+		}},
+	}})
 	lastUpdate := time.Now()
 	messageTimeout := time.Tick(serverMessagingTimeout)
 

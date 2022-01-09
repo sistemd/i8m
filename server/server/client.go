@@ -3,12 +3,13 @@ package server
 import (
 	"log"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/ennmichael/i8m/server/engine"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
-// TODO I would like to have a communication module instead of this somewhat odd client module
+// TODO I would like to have a communication module instead of this somewhat odd server + client module
 
 type client struct {
 	id       engine.PlayerID
@@ -53,8 +54,11 @@ Loop:
 		select {
 		case message := <-c.messages:
 			if message.FetchTerrain != nil && *message.FetchTerrain == true {
-				log.Printf("Return the static terrain")
-				//c.sendMessage()
+				terrain := engine.Terrain()
+				log.Printf("Sending static terrain %s", spew.Sdump(terrain))
+				c.sendMessage(&messageForClient{
+					Terrain: toTerrainMessage(terrain),
+				})
 			}
 			if message.Direction != nil {
 				log.Printf("Received direction update message (%v, %v)", message.Direction.X, message.Direction.Y)
