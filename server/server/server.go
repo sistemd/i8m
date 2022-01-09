@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ennmichael/i8m/server/engine"
-	"github.com/ennmichael/i8m/server/engine/box2d"
+	"github.com/ennmichael/i8m/server/game"
+	"github.com/ennmichael/i8m/server/game/box2d"
 	"github.com/gorilla/websocket"
 )
 
@@ -15,8 +15,8 @@ const serverMessagingTimeout = 10 * time.Millisecond
 func mainLoop(newConns <-chan *websocket.Conn) {
 	var dt float64
 	var clients []*client
-	engine := engine.NewEngine(1.0/60.0, 100, box2d.NewPhysics(), engine.Terrain{Polygons: []engine.Polygon{
-		{Points: []engine.Vector{
+	game := game.NewEngine(1.0/60.0, 100, box2d.NewPhysics(), game.Terrain{Polygons: []game.Polygon{
+		{Points: []game.Vector{
 			{X: 30, Y: 250},
 			{X: 120, Y: 30},
 			{X: 30, Y: 20},
@@ -28,18 +28,18 @@ func mainLoop(newConns <-chan *websocket.Conn) {
 	updateEngine := func() {
 		now := time.Now()
 		dt += now.Sub(lastUpdate).Seconds()
-		dt = engine.Update(dt)
+		dt = game.Update(dt)
 		lastUpdate = now
 	}
 
 	sendGameStateMessages := func() {
 		for _, client := range clients {
 			if client.conn == nil {
-				engine.RemovePlayer(client.id)
+				game.RemovePlayer(client.id)
 				continue
 			}
-			client.sendGameStateMessage(engine)
-			engine.PostUpdate()
+			client.sendGameStateMessage(game)
+			game.PostUpdate()
 		}
 	}
 
@@ -49,11 +49,11 @@ func mainLoop(newConns <-chan *websocket.Conn) {
 		select {
 		case newConn := <-newConns:
 			log.Printf("Received a new connection")
-			newClient := newClient(engine, newConn)
+			newClient := newClient(game, newConn)
 			// Right when a player connects, they are notified of their ID.
 			newClient.sendIDMessage()
 			log.Printf("Adding player %s", newClient.id)
-			engine.AddPlayer(newClient.id)
+			game.AddPlayer(newClient.id)
 			clients = append(clients, newClient)
 		case <-messageTimeout:
 			sendGameStateMessages()
@@ -63,7 +63,7 @@ func mainLoop(newConns <-chan *websocket.Conn) {
 		updateEngine()
 
 		for _, client := range clients {
-			client.handleMessages(engine)
+			client.handleMessages(game)
 		}
 	}
 }

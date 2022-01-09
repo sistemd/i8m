@@ -2,7 +2,7 @@ package box2d
 
 import (
 	"github.com/ByteArena/box2d"
-	"github.com/ennmichael/i8m/server/engine"
+	"github.com/ennmichael/i8m/server/game"
 )
 
 type Box2dPhysics struct {
@@ -20,7 +20,7 @@ func NewPhysics() Box2dPhysics {
 	}
 }
 
-func (p Box2dPhysics) CreateTerrain(terrain engine.Terrain) {
+func (p Box2dPhysics) CreateTerrain(terrain game.Terrain) {
 	staticBodyDef := box2d.MakeB2BodyDef()
 	staticBodyDef.Type = box2d.B2BodyType.B2_kinematicBody
 	staticBodyDef.Position.Set(0, 0)
@@ -34,7 +34,7 @@ func (p Box2dPhysics) CreateTerrain(terrain engine.Terrain) {
 	}
 }
 
-func (p Box2dPhysics) CreateEntity(radius float64) engine.PhysicsEntity {
+func (p Box2dPhysics) CreateEntity(radius float64) game.PhysicsEntity {
 	bodyDef := box2d.MakeB2BodyDef()
 	bodyDef.Type = box2d.B2BodyType.B2_dynamicBody
 	bodyDef.Position.Set(0, 0)
@@ -58,19 +58,19 @@ func (p Box2dPhysics) Update(timestep float64) {
 	p.world.Step(timestep, 6, 2)
 }
 
-func (pe Box2dPhysicsEntity) SetVelocity(velocity engine.Vector) {
+func (pe Box2dPhysicsEntity) SetVelocity(velocity game.Vector) {
 	pe.body.SetLinearVelocity(toBox2dVector(velocity))
 }
 
-func (pe Box2dPhysicsEntity) Position() engine.Vector {
+func (pe Box2dPhysicsEntity) Position() game.Vector {
 	return fromBox2dVector(pe.body.GetPosition())
 }
 
-func toBox2dVector(vec engine.Vector) box2d.B2Vec2 {
+func toBox2dVector(vec game.Vector) box2d.B2Vec2 {
 	return box2d.MakeB2Vec2(vec.X, vec.Y)
 }
 
-func toBox2dVectors(vecs []engine.Vector) []box2d.B2Vec2 {
+func toBox2dVectors(vecs []game.Vector) []box2d.B2Vec2 {
 	var result []box2d.B2Vec2
 	for _, vec := range vecs {
 		result = append(result, toBox2dVector(vec))
@@ -78,6 +78,6 @@ func toBox2dVectors(vecs []engine.Vector) []box2d.B2Vec2 {
 	return result
 }
 
-func fromBox2dVector(vec box2d.B2Vec2) engine.Vector {
-	return engine.Vector{X: vec.X, Y: vec.Y}
+func fromBox2dVector(vec box2d.B2Vec2) game.Vector {
+	return game.Vector{X: vec.X, Y: vec.Y}
 }

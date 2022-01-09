@@ -1,6 +1,6 @@
 package server
 
-import "github.com/ennmichael/i8m/server/engine"
+import "github.com/ennmichael/i8m/server/game"
 
 // messageForClient is a message that gets sent from the server to the client.
 // This type is designed to be encoded into JSON.
@@ -51,13 +51,13 @@ type railMessage struct {
 	Offset vectorMessage `json:"offset"`
 }
 
-func toGameMessage(engine *engine.Engine) *gameMessage {
+func toGameMessage(game *game.Engine) *gameMessage {
 	return &gameMessage{
-		Players: toPlayerMessages(engine.Players()),
+		Players: toPlayerMessages(game.Players()),
 	}
 }
 
-func toTerrainMessage(terrain engine.Terrain) *terrainMessage {
+func toTerrainMessage(terrain game.Terrain) *terrainMessage {
 	var polygons []polygonMessage
 	for _, polygon := range terrain.Polygons {
 		polygons = append(polygons, toPolygonMessage(polygon))
@@ -65,7 +65,7 @@ func toTerrainMessage(terrain engine.Terrain) *terrainMessage {
 	return &terrainMessage{Polygons: polygons}
 }
 
-func toPolygonMessage(polygon engine.Polygon) polygonMessage {
+func toPolygonMessage(polygon game.Polygon) polygonMessage {
 	var points []vectorMessage
 	for _, point := range polygon.Points {
 		points = append(points, toVectorMessage(point))
@@ -73,21 +73,21 @@ func toPolygonMessage(polygon engine.Polygon) polygonMessage {
 	return polygonMessage{Points: points}
 }
 
-func toVectorMessage(vector engine.Vector) vectorMessage {
+func toVectorMessage(vector game.Vector) vectorMessage {
 	return vectorMessage{
 		X: vector.X,
 		Y: vector.Y,
 	}
 }
 
-func fromVectorMessage(msg vectorMessage) engine.Vector {
-	return engine.Vector{
+func fromVectorMessage(msg vectorMessage) game.Vector {
+	return game.Vector{
 		X: msg.X,
 		Y: msg.Y,
 	}
 }
 
-func toPlayerMessage(player engine.Player) playerMessage {
+func toPlayerMessage(player game.Player) playerMessage {
 	return playerMessage{
 		Position:    toVectorMessage(player.Position()),
 		Direction:   toVectorMessage(player.Direction.Vector()),
@@ -97,7 +97,7 @@ func toPlayerMessage(player engine.Player) playerMessage {
 	}
 }
 
-func toPlayerMessages(players map[engine.PlayerID]engine.Player) map[string]playerMessage {
+func toPlayerMessages(players map[game.PlayerID]game.Player) map[string]playerMessage {
 	result := make(map[string]playerMessage)
 	for id, player := range players {
 		result[string(id)] = toPlayerMessage(player)

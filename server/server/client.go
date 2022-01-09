@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/ennmichael/i8m/server/engine"
+	"github.com/ennmichael/i8m/server/game"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
@@ -12,17 +12,17 @@ import (
 // TODO I would like to have a communication module instead of this somewhat odd server + client module
 
 type client struct {
-	id       engine.PlayerID
+	id       game.PlayerID
 	messages chan messageFromClient
-	engine   *engine.Engine
+	game     *game.Engine
 	conn     *websocket.Conn
 }
 
-func newClient(e *engine.Engine, conn *websocket.Conn) *client {
+func newClient(e *game.Engine, conn *websocket.Conn) *client {
 	c := &client{
-		id:       engine.PlayerID(uuid.New().String()),
+		id:       game.PlayerID(uuid.New().String()),
 		messages: make(chan messageFromClient, 20),
-		engine:   e,
+		game:     e,
 		conn:     conn,
 	}
 	go c.listenForMessages()
@@ -48,13 +48,13 @@ func (c *client) listenForMessages() {
 }
 
 // handleMessages updates the client direction based on his input.
-func (c *client) handleMessages(engine *engine.Engine) {
+func (c *client) handleMessages(game *game.Engine) {
 Loop:
 	for {
 		select {
 		case message := <-c.messages:
 			if message.FetchTerrain != nil && *message.FetchTerrain == true {
-				terrain := engine.Terrain()
+				terrain := game.Terrain()
 				log.Printf("Sending static terrain %s", spew.Sdump(terrain))
 				c.sendMessage(&messageForClient{
 					Terrain: toTerrainMessage(terrain),
@@ -62,11 +62,11 @@ Loop:
 			}
 			if message.Direction != nil {
 				log.Printf("Received direction update message (%v, %v)", message.Direction.X, message.Direction.Y)
-				c.engine.SetPlayerDirection(c.id, fromVectorMessage(*message.Direction).Normalized())
+				c.game.SetPlayerDirection(c.id, fromVectorMessage(*message.Direction).Normalized())
 			}
 			if message.Rail != nil {
 				log.Printf("Received rail fire message (%v, %v)", message.Rail.Direction.X, message.Direction.Y)
-				engine.FireRail(c.id, fromVectorMessage(message.Rail.Direction).Normalized())
+				game.FireRail(c.id, fromVectorMessage(message.Rail.Direction).Normalized())
 			}
 		default:
 			break Loop
@@ -81,8 +81,8 @@ func (c *client) sendMessage(msg *messageForClient) {
 	}
 }
 
-func (c *client) sendGameStateMessage(engine *engine.Engine) {
-	c.sendMessage(&messageForClient{Game: toGameMessage(engine)})
+func (c *client) sendGameStateMessage(game *game.Engine) {
+	c.sendMessage(&messageForClient{Game: toGameMessage(game)})
 }
 
 func (c *client) sendIDMessage() {
