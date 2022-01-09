@@ -5,15 +5,17 @@ import "github.com/ennmichael/i8m/server/engine"
 // messageForClient is a message that gets sent from the server to the client.
 // This type is designed to be encoded into JSON.
 type messageForClient struct {
-	ID   string      `json:"id,omitempty"`
-	Game gameMessage `json:"game,omitempty"`
+	ID      *string         `json:"id,omitempty"`
+	Game    *gameMessage    `json:"game,omitempty"`
+	Terrain *terrainMessage `json:"terrain,omitempty"`
 }
 
 // messageFromClient is a message that gets sent from the client to the server.
 // This type will typically be decoded from JSON.
 type messageFromClient struct {
-	Direction *vectorMessage `json:"direction"`
-	Rail      *struct {
+	FetchTerrain *bool          `json:"terrain"`
+	Direction    *vectorMessage `json:"direction"`
+	Rail         *struct {
 		Direction vectorMessage `json:"direction"`
 	} `json:"rail"`
 }
@@ -40,8 +42,11 @@ type railMessage struct {
 	Offset vectorMessage `json:"offset"`
 }
 
-func toGameMessage(engine *engine.Engine) gameMessage {
-	return gameMessage{
+type terrainMessage struct {
+}
+
+func toGameMessage(engine *engine.Engine) *gameMessage {
+	return &gameMessage{
 		Players: toPlayerMessages(engine.Players()),
 	}
 }

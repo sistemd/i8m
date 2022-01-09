@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ennmichael/i8m/server/engine"
+	"github.com/ennmichael/i8m/server/engine/box2d"
 	"github.com/gorilla/websocket"
 )
 
@@ -14,18 +15,18 @@ const serverMessagingTimeout = 10 * time.Millisecond
 func mainLoop(newConns <-chan *websocket.Conn) {
 	var dt float64
 	var clients []*client
-	engine := engine.NewEngine(1, 0.1)
+	engine := engine.NewEngine(1.0/30.0, 100, box2d.NewPhysics())
 	lastUpdate := time.Now()
 	messageTimeout := time.Tick(serverMessagingTimeout)
 
 	updateEngine := func() {
 		now := time.Now()
-		dt += float64(now.Sub(lastUpdate).Nanoseconds()) / 1e6
+		dt += now.Sub(lastUpdate).Seconds()
 		dt = engine.Update(dt)
 		lastUpdate = now
 	}
 
-	sendMessages := func() {
+	sendGameStateMessages := func() {
 		for _, client := range clients {
 			if client.conn == nil {
 				engine.RemovePlayer(client.id)
@@ -36,16 +37,20 @@ func mainLoop(newConns <-chan *websocket.Conn) {
 		}
 	}
 
+	log.Printf("Starting game main loop")
+
 	for {
 		select {
 		case newConn := <-newConns:
+			log.Printf("Received a new connection")
 			newClient := newClient(engine, newConn)
 			// Right when a player connects, they are notified of their ID.
 			newClient.sendIDMessage()
+			log.Printf("Adding player %s", newClient.id)
 			engine.AddPlayer(newClient.id)
 			clients = append(clients, newClient)
 		case <-messageTimeout:
-			sendMessages()
+			sendGameStateMessages()
 		default:
 		}
 
@@ -93,6 +98,7 @@ func Start(staticFilesRoot string) {
 		}
 	})
 
+	log.Printf("started the server at http://localhost:8080")
 	err := http.ListenAndServe(":8080", mux)
 	log.Fatalf("failed to start server: %v", err)
 }
